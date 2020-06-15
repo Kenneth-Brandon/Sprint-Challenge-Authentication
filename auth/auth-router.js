@@ -1,62 +1,76 @@
-const router = require('express').Router();
+const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const UsersDB = require('../database/dbConfig');
+const router = require('express').Router();
+const Users = require('./auth-model.js');
 
-router.post('/register', async (req, res) => {
+//for generating a login token
+function generateToken(user) {
+  const payload = {
+    subject: user.username,
+  };
+  const secret = 'banana';
+  const options = {
+    expiresIn: '1h',
+  };
+  return jwt.sign(payload, secret, options);
+}
+
+router.post('/register', validateUserInfo, (req, res) => {
   // implement registration
-  let { username, password } = req.body;
-  console.log(username);
-  if (username && typeof password === 'string') {
-    const rounds = process.env.BCRYPT_ROUNDS || 8;
-    const hash = bcrypt.hashSync(password, rounds);
-    password = hash;
-    try {
-      await UsersDB('users').insert({ username, password });
-      res.status(200).json({ username, password });
-    } catch (err) {
-      console.log(err);
-      res.status(500).json({ error: 'Server error', err: err });
-    }
-  } else {
-    res.status(404).json({
-      message: 'please provide username and password ',
-    });
-  }
-});
+  //hash the passsword
+  const hash = bcrypt.hashSync(req.body.password, 10);
+  req.body.password = hash;
 
-router.post('/login', async (req, res) => {
-  let { username, password } = req.body;
-
-  try {
-    let user = await await UsersDB('users').where({ username }).first();
-    if (user && bcrypt.compareSync(password, user.password)) {
-      req.session.user = user;
-      // console.log(req.session);
-      res.status(200).json({ message: 'Logged in' });
-    } else {
+  //add the user
+  Users.addUser(req.body)
+    .then((response) => {
       res
-        .status(401)
-        .json({ message: 'You shall not pass! Invalid credentials' });
-    }
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ error: 'Server error', err: err });
-  }
-});
-
-router.get('/logout', (req, res) => {
-  if (req.session) {
-    req.session.destroy((err) => {
-      if (err) {
-        res.send('error when trying to delete session');
-      } else {
-        console.log(req.session);
-        res.send('session deleted');
-      }
+        .status(201)
+        .json({ message: `User number ${response} created`, user: response });
+    })
+    .catch((Err) => {
+      res.status(500).json({ message: 'Error creating user', error: err });
     });
-  } else {
-    res.end();
-  }
 });
 
+router.post('/login', (req, res) => {
+  // implement login
+  const user = req.body;
+
+  Users.getUserByUsername(user.username)
+    .then(([storedUser]) => {
+      console.log(storedUser);
+      if (!storedUser) {
+        res.status(404).json({ message: 'User not found' });
+      } else if (bcrypt.compareSync(user.password, storedUser.password)) {
+        const token = generateToken(storedUser);
+        res.status(200).json({ message: 'Credentials match', token: token });
+      } else {
+        res.status(403).json({ message: 'Credentials incorrect' });
+      }
+    })
+    .catch((err) => {
+      res
+        .status(500)
+        .json({ message: 'Error checking credentials', error: err });
+    });
+});
+
+router.get('/users', (req, res) => {
+  Users.getUsers()
+    .then((users) => {
+      res.status(200).json({ data: users });
+    })
+    .catch((Err) => {
+      res.status(500).json({ message: 'Error retrieving users', error: err });
+    });
+});
+
+function validateUserInfo(req, res, next) {
+  if (req.body && req.body.username && req.body.password) {
+    next();
+  } else {
+    res.status(400).json({ message: 'Please include a username and password' });
+  }
+}
 module.exports = router;

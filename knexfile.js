@@ -9,14 +9,16 @@ module.exports = {
     },
     seeds: { directory: './database/seeds' },
   },
+
   testing: {
     client: 'sqlite3',
     connection: {
-      filename: './database/auth.db3',
+      filename: './database/testauth.db3',
     },
     useNullAsDefault: true,
     migrations: {
       directory: './database/migrations',
+      tableName: 'dbmigrations',
     },
     seeds: {
       directory: './database/seeds',
