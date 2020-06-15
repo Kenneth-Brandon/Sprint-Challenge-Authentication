@@ -1,16 +1,13 @@
-const cryptZ = require('bcryptjs');
-
-exports.seed = function (knex) {
-  // Deletes ALL existing entries
+exports.seed = function (knex, Promise) {
+  // Deletes ALL existing entries and resets ids
   return knex('users')
-    .del()
+    .truncate()
     .then(function () {
-      // Inserts seed entries
       return knex('users').insert([
-        { username: 'jon', password: cryptZ.hashSync('quimble', 12) },
-        { username: 'eyyy', password: cryptZ.hashSync('quimble', 12) },
-        { username: 'quimb', password: cryptZ.hashSync('quimble', 12) },
-        { username: 'bimb', password: cryptZ.hashSync('quimble', 12) },
+        { username: 'Sam', password: '123' },
+        { username: 'Mike', password: '123' },
+        { username: 'Smith', password: '123' },
+        { username: 'Jason', password: '123' },
       ]);
     });
 };

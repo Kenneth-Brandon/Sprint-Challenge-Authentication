@@ -1,64 +1,62 @@
 const router = require('express').Router();
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const secrets = require('../config/secrets.js');
+const UsersDB = require('../database/dbConfig');
 
-const Users = require('../users/users-model.js');
-
-router.post('/register', (req, res) => {
+router.post('/register', async (req, res) => {
   // implement registration
-  const user = req.body;
-  const hash = bcrypt.hashSync(user.password, 8);
-
-  user.password = hash;
-
-  Users.add(user)
-    .then((saved) => {
-      const token = generateToken(saved);
-      res.status(201).json({ created_user: saved, token: token });
-    })
-    .catch((err) => {
-      res.status(500).json({ message: 'problem with the db' });
+  let { username, password } = req.body;
+  console.log(username);
+  if (username && typeof password === 'string') {
+    const rounds = process.env.BCRYPT_ROUNDS || 8;
+    const hash = bcrypt.hashSync(password, rounds);
+    password = hash;
+    try {
+      await UsersDB('users').insert({ username, password });
+      res.status(200).json({ username, password });
+    } catch (err) {
+      console.log(err);
+      res.status(500).json({ error: 'Server error', err: err });
+    }
+  } else {
+    res.status(404).json({
+      message: 'please provide username and password ',
     });
+  }
 });
 
-router.post('/login', (req, res) => {
-  // implement login
-  const { username, password } = req.body;
+router.post('/login', async (req, res) => {
+  let { username, password } = req.body;
 
-  Users.findBy({ username })
-    .first()
-    .then((user) => {
-      if (user && bcrypt.compareSync(password, user.password)) {
-        const token = generateToken(user);
+  try {
+    let user = await await UsersDB('users').where({ username }).first();
+    if (user && bcrypt.compareSync(password, user.password)) {
+      req.session.user = user;
+      // console.log(req.session);
+      res.status(200).json({ message: 'Logged in' });
+    } else {
+      res
+        .status(401)
+        .json({ message: 'You shall not pass! Invalid credentials' });
+    }
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ error: 'Server error', err: err });
+  }
+});
 
-        res.status(200).json({
-          message: `Welcome ${user.username}`,
-          jwt_token: token,
-        });
+router.get('/logout', (req, res) => {
+  if (req.session) {
+    req.session.destroy((err) => {
+      if (err) {
+        res.send('error when trying to delete session');
       } else {
-        res.status(401).json({ message: 'You shall not pass!' });
+        console.log(req.session);
+        res.send('session deleted');
       }
-    })
-    .catch((err) => {
-      res.status(500).json({ message: 'problem with the db', error: err });
     });
+  } else {
+    res.end();
+  }
 });
-
-function generateToken(user) {
-  const payload = {
-    subject: user.id,
-    username: user.username,
-    // other data
-  };
-
-  const options = {
-    expiresIn: '30 min',
-  };
-
-  const token = jwt.sign(payload, secrets.jwt_secret, options);
-
-  return token;
-}
 
 module.exports = router;

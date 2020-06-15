@@ -1,19 +1,29 @@
 const request = require('supertest');
 const server = require('../api/server.js');
+const session = require('supertest-session');
 
-describe('GET /', () => {
-  it('should return JSON type', () => {
-    return request(server)
-      .get('/api/jokes/')
-      .then((res) => {
-        expect(res.type).toBe('application/json');
+const testSession = null;
+
+beforeEach(function () {
+  testSession = session(server);
+});
+
+describe('after authenticating session', function () {
+  let authenticatedSession;
+
+  beforeEach(function (done) {
+    testSession
+      .post('/api/auth/login')
+      .send({ username: 'Will', password: '123' })
+      .expect(200)
+      .end(function (err) {
+        if (err) return done(err);
+        authenticatedSession = testSession;
+        return done();
       });
   });
-  it('should return message', () => {
-    return request(server)
-      .get('/api/jokes')
-      .catch((res) => {
-        expect(res.body).toBe({ message: 'Error Fetching Jokes' });
-      });
+
+  it('should get a restricted page', function (done) {
+    authenticatedSession.get('/api/jokes').expect(200).end(done);
   });
 });

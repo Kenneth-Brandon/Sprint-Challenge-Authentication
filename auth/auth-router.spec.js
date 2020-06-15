@@ -1,37 +1,34 @@
 const request = require('supertest');
 const server = require('../api/server.js');
+const db = require('../database/dbConfig.js');
 
-describe('POST / Register', () => {
-  it('should return message - problem with db', () => {
-    return request(server)
-      .post('/api/auth/register')
-      .catch((res) => {
-        expect(res.body).toEqual({ message: 'problem with the db' });
-      });
+describe('POST /', () => {
+  it('AFTER POST should return 200 ok', async () => {
+    const res = await request(server).post('/api/auth/register').send({
+      username: 'Will5',
+      password: '123',
+    });
+    expect(res.status).toBe(200);
   });
-  it('should return 500', () => {
-    return request(server)
+  it('should return username after register', async () => {
+    const res = await request(server)
       .post('/api/auth/register')
-      .then((res) => {
-        expect(res.status).toBe(500);
-      });
+      .send({ username: 'Will5', password: '123' });
+    expect(res.body.username).toBe('Will5');
+  });
+  it('should return message user after login', async () => {
+    const res = await request(server)
+      .post('/api/auth/login')
+      .send({ username: 'Will5', password: '123' });
+    expect(res.type).toBe('application/json');
+  });
+  beforeEach(async () => {
+    await db('users').truncate();
   });
 });
-
-describe('POST / Login', () => {
-  it('should return message - you shall not pass', () => {
-    return request(server)
-      .post('/api/auth/login')
-      .send({ username: 'alessandra123', password: 'password123' })
-      .then((res) => {
-        expect(res.body).toEqual({ message: 'You shall not pass!' });
-      });
-  });
-  it('should return message - problem with the db', () => {
-    return request(server)
-      .post('/api/auth/login')
-      .catch((res) => {
-        expect(res.body).toEqual({ message: 'problem with the db' });
-      });
+describe('get / LOGOUT', () => {
+  it('AFTER logout should return 200 ok', async () => {
+    const res = await request(server).get('/api/auth/logout');
+    expect(res.status).toBe(200);
   });
 });
