@@ -1,3 +1,6 @@
+const pgConnection =
+  process.env.DATABASE_URL || 'postgresql://postgres@localhost/auth;';
+
 module.exports = {
   development: {
     client: 'sqlite3',
@@ -19,6 +22,20 @@ module.exports = {
     migrations: {
       directory: './database/migrations',
       tableName: 'dbmigrations',
+    },
+    seeds: {
+      directory: './database/seeds',
+    },
+  },
+  production: {
+    client: 'pg',
+    connection: pgConnection,
+    pool: {
+      min: 2,
+      max: 10,
+    },
+    migrations: {
+      directory: './database/migrations',
     },
     seeds: {
       directory: './database/seeds',
